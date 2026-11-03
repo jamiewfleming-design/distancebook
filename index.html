@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Distance Book</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one column, sticky race picker, runner cards with a 4-cell fair-price strip (2/4/6/8 lengths) */
+:root{
+  --bg:#f3f4f1; --surface:#ffffff; --ink:#15201b; --muted:#5d6b64; --line:#d9ddd6;
+  --turf:#1f6b46; --turf-ink:#ffffff; --chip:#e6ebe6; --value:#0f7a3f; --value-bg:#dff3e6; --warn:#a4501b; --warn-bg:#fbe8dc;
+  --display:"Barlow Condensed","Arial Narrow",sans-serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0f1512; --surface:#18211c; --ink:#e8eee9; --muted:#97a69e; --line:#2a352f;
+  --turf:#2f8f5f; --turf-ink:#ffffff; --chip:#223029; --value:#5fd391; --value-bg:#163524; --warn:#f0a070; --warn-bg:#3a2316; color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.45 var(--body);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.wrap{max-width:720px;margin:0 auto;padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px))}
+header.top{background:var(--turf);color:var(--turf-ink)}
+header.top .wrap{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-block:12px}
+h1{font:700 26px/1 var(--display);letter-spacing:.02em;margin:0;text-transform:uppercase}
+.meta{font:12px var(--mono);opacity:.85;text-align:right}
+.picker{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+.picker .wrap{padding-block:8px;display:grid;gap:8px}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 12px;font:600 14px var(--body);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.race-chip{display:flex;flex-direction:column;align-items:flex-start;border-radius:10px;padding:5px 10px;line-height:1.15}
+.race-chip small{font:500 11px var(--body);color:inherit;opacity:.75}
+.racehead{padding-block:14px 6px}
+.racehead h2{font:600 22px/1.1 var(--display);margin:0 0 4px;text-transform:uppercase;letter-spacing:.01em;text-wrap:balance}
+.facts{display:flex;flex-wrap:wrap;gap:6px 12px;color:var(--muted);font-size:13px}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-block:8px;font-size:13px;color:var(--muted)}
+.btn{border:0;background:var(--turf);color:var(--turf-ink);font:600 14px var(--body);padding:9px 14px;border-radius:8px;cursor:pointer}
+.btn:focus-visible,.chip:focus-visible,input:focus-visible{outline:3px solid var(--value);outline-offset:2px}
+.status.err{color:var(--warn)}
+.legend{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;font:600 11px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:0 10px 4px}
+.legend span{text-align:center}
+.runners{display:grid;gap:8px;padding-bottom:28px}
+.r{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;display:grid;gap:6px}
+.r.nr{opacity:.45}
+.row1{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;align-items:center}
+.who{grid-column:1/-1;display:flex;justify-content:space-between;align-items:baseline;gap:8px;cursor:pointer}
+.who{min-width:0}
+.name{font:600 16px/1.2 var(--body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.name b{font:500 12px var(--mono);color:var(--muted);margin-right:6px}
+.odds{flex:0 0 auto;font:500 13px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.odds .now{color:var(--ink);font-weight:600}
+.odds .st{color:var(--value)} .odds .dr{color:var(--warn)}
+.cell{text-align:center;border-radius:6px;background:var(--chip);padding:5px 2px;font:600 15px var(--mono);font-variant-numeric:tabular-nums;color:var(--ink)}
+.cell small{display:block;font:400 10px var(--mono);color:var(--muted)}
+.cell.good{background:var(--value-bg);color:var(--value)}
+.notes{display:flex;flex-wrap:wrap;gap:4px}
+.note{font:500 11px var(--body);padding:2px 7px;border-radius:999px;background:var(--chip);color:var(--muted)}
+.note.plus{background:var(--value-bg);color:var(--value)} .note.minus{background:var(--warn-bg);color:var(--warn)}
+.cell.worse{background:var(--warn-bg);color:var(--warn)}
+.empty{padding:40px 0;color:var(--muted);text-align:center}
+footer{color:var(--muted);font-size:12px;padding-block:8px 24px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap"><h1>Distance Book</h1><div class="meta" id="meta">loading…</div></div></header>
+<div class="picker"><div class="wrap">
+  <div class="chips" id="courses" role="group" aria-label="Course"></div>
+  <div class="chips" id="races" role="group" aria-label="Race"></div>
+</div></div>
+<main class="wrap" id="main"><div class="empty">Loading today's cards…</div></main>
+<footer class="wrap">Target = the shortest price worth taking for a win by at least 2, 4, 6 or 8 lengths, treating the current price as the SP. It trusts the model's view only as far as it held up on 2023–26 races and adds a safety margin (10% at 2L and 4L, 15% at 6L, 20% at 8L). Green: the model rates this runner's chance clearly above what its price alone implies. Orange: clearly below. Small figure: estimated chance. GB hurdles and chases only.</footer>
+<script>
+const LADDER=[[1,10],[1,8],[1,6],[1,5],[2,9],[1,4],[2,7],[1,3],[4,11],[2,5],[4,9],[1,2],[8,15],[4,7],[8,13],[4,6],[8,11],[4,5],[5,6],[10,11],[1,1],[11,10],[6,5],[5,4],[11,8],[6,4],[13,8],[7,4],[15,8],[2,1],[85,40],[9,4],[12,5],[5,2],[11,4],[3,1],[10,3],[7,2],[4,1],[9,2],[5,1],[11,2],[6,1],[13,2],[7,1],[15,2],[8,1],[17,2],[9,1],[10,1],[11,1],[12,1],[14,1],[16,1],[18,1],[20,1],[22,1],[25,1],[28,1],[33,1],[40,1],[50,1],[66,1],[80,1],[100,1],[125,1],[150,1],[200,1],[250,1],[300,1],[400,1],[500,1]];
+const TH=['2','4','6','8'];
+let DATA=null, state={course:null, race:null, live:{}}, timer=null;
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function parsePrice(s){ // accepts 9/2, 4.5 (fractional odds-to-1) or "evs"
+  if(!s) return null; s=String(s).trim().toLowerCase(); if(s==='evs'||s==='evens'||s==='ev') return 2;
+  let m=s.match(/^(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/); if(m) return 1+(+m[1])/(+m[2]);
+  m=s.match(/^(\d+(?:\.\d+)?)$/); if(m) return 1+(+m[1]); return null; }
+function minLadder(dec){ const f=dec-1; for(const [a,b] of LADDER){ if(a/b>=f-1e-9) return a+'/'+b; } return Math.round(f)+'/1'; }
+function fmtFrac(dec){ if(dec==null) return '–'; const f=dec-1; let best=LADDER[0],bd=9e9; for(const p of LADDER){const d=Math.abs(p[0]/p[1]-f); if(d<bd){bd=d;best=p}} return f>500? Math.round(f)+'/1' : best[0]+'/'+best[1]; }
+function sig(z){return 1/(1+Math.exp(-z))}
+function priceFeats(share,opDec,curDec,favShare,nLive,ran,hcap){
+  const p=Math.min(.98,Math.max(.002,share)), x=Math.log(p/(1-p));
+  let mv=Math.log((opDec||curDec)/curDec); mv=Math.max(-1,Math.min(1,mv));
+  const dead=Math.max(ran-nLive,0), h=hcap?1:0, ll=Math.log(Math.max(nLive,1));
+  return {x:x,x2:x*x,x3:x*x*x,steam_p:Math.max(mv,0),drift_p:Math.max(-mv,0),fav_p:favShare,lnlive_h:ll*h,lnlive_nh:ll*(1-h),lndead_h:Math.log1p(dead)*h,lndead_nh:Math.log1p(dead)*(1-h)};
+}
+function compute(race){
+  const live=state.live[race.race_id];
+  const rows=race.runners.map(r=>{
+    const L=live&&live.byName[norm(r.name)];
+    const nr=L? L.nr : false;
+    const cur=L&&L.cur? L.cur : r.morning; const op=L&&L.op? L.op : (r.op||r.morning);
+    return {...r,nr,cur,opd:op};
+  });
+  const act=rows.filter(r=>!r.nr&&r.cur);
+  const tot=act.reduce((s,r)=>s+1/r.cur,0);
+  act.forEach(r=>r.share=(1/r.cur)/tot);
+  const fav=Math.max(...act.map(r=>r.share)), nLive=act.filter(r=>r.share>=.05).length, ran=act.length;
+  act.forEach(r=>{
+    const f=priceFeats(r.share,r.opd,r.cur,fav,nLive,ran,race.hcap);
+    r.target={}; r.p={}; r.tilt={};
+    TH.forEach(k=>{ const c=race.price_coef[k]; let zf=r.offset[k]; for(const n in c) zf+=c[n]*f[n];
+      const b=race.base[k], zb=b.icpt+b.x*f.x+b.x2*f.x2+b.x3*f.x3;
+      const lam=DATA.target.lambda[k], m=DATA.target.margin[k];
+      const z=zb+lam*(zf-zb), p=sig(z);
+      r.p[k]=p; r.tilt[k]=p/sig(zb); r.target[k]=(1+m)/p; });
+  });
+  return {rows,ran,nLive,book:tot};
+}
+function norm(s){return String(s||'').toLowerCase().replace(/\s*\([a-z]{2,3}\)\s*$/,'').replace(/[^a-z0-9]/g,'')}
+async function fetchLive(race){
+  const st=$('#status'); if(st){st.textContent='updating prices…';st.className='status'}
+  try{
+    const r=await fetch('https://www.sportinglife.com/api/horse-racing/race/'+race.race_id,{cache:'no-store'});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const j=await r.json(); const byName={};
+    for(const x of j.rides||[]){ const b=x.betting||{}, h=b.historical_odds||[];
+      byName[norm(x.horse&&x.horse.name)]={cur:parsePrice(b.current_odds), op:h.length?parsePrice(h[0]):null, nr:x.ride_status==='NONRUNNER', hist:h}; }
+    state.live[race.race_id]={byName,at:new Date(),stage:j.race_summary&&j.race_summary.race_stage};
+    render();
+  }catch(e){ if(st){st.textContent='Could not reach Sporting Life ('+e.message+'). Showing morning prices.';st.className='status err'} }
+}
+function plusMinus(n){ const plus=['won 5L+ LTO','OR down 4+','lone leader','leader, contested','maiden'], minus=['won <2L LTO','OR up','wins narrowly'];
+  return plus.includes(n)?'plus':minus.includes(n)?'minus':''; }
+function render(){
+  if(!DATA) return;
+  const courses=[...new Set(DATA.races.map(r=>r.course))];
+  if(!state.course||!courses.includes(state.course)) state.course=courses[0];
+  $('#courses').innerHTML=courses.map(c=>`<button class="chip" aria-pressed="${c===state.course}" data-c="${esc(c)}">${esc(c)}</button>`).join('');
+  const races=DATA.races.filter(r=>r.course===state.course);
+  if(!state.race||!races.find(r=>r.race_id===state.race)) state.race=(races.find(r=>!isPast(r))||races[0]||{}).race_id;
+  $('#races').innerHTML=races.map(r=>`<button class="chip race-chip" aria-pressed="${r.race_id===state.race}" data-r="${r.race_id}">${esc(r.time)}<small>${r.code==='Chase'?'Chase':'Hurdle'}${r.hcap?' hcap':''} · ${r.ran}</small></button>`).join('');
+  const race=DATA.races.find(r=>r.race_id===state.race);
+  if(!race){$('#main').innerHTML='<div class="empty">No GB jumps races today.</div>';return}
+  const c=compute(race), live=state.live[race.race_id];
+  const when=live? 'Prices '+live.at.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'})+' (Sporting Life)' : 'Morning prices';
+  let html=`<section class="racehead"><h2>${esc(race.time)} ${esc(race.course)} · ${esc(race.name)}</h2>
+   <div class="facts"><span>${esc(race.distance)}</span><span>${esc(race.going||'')}</span><span>${race.code}${race.hcap?' handicap':''}</span><span>Class ${esc(race.class||'–')}</span><span>${c.ran} runners, ${c.nLive} at 16/1 or shorter</span><span>Book ${(c.book*100).toFixed(0)}%</span></div></section>
+   <div class="bar"><span id="status" class="status">${when}</span><button class="btn" id="refresh">Refresh prices</button></div>
+   <div class="legend"><span>2L+ target</span><span>4L+</span><span>6L+</span><span>8L+</span></div><div class="runners">`;
+  const rows=[...c.rows].sort((a,b)=>(a.nr-b.nr)||((a.cur||999)-(b.cur||999)));
+  for(const r of rows){
+    const mv=r.opd&&r.cur? r.opd/r.cur : 1;
+    const mvc=mv>=1.1?'st':mv<=0.9?'dr':'';
+    const oddsTxt=r.nr? 'non-runner' : `<span class="now">${fmtFrac(r.cur)}</span>${r.opd&&Math.abs(mv-1)>.02?` <span class="${mvc}">from ${fmtFrac(r.opd)}</span>`:''} · win ${(r.share*100||0).toFixed(0)}%`;
+    const cells=TH.map(k=>{ if(r.nr||!r.target) return '<span class="cell">–</span>';
+      const t=r.tilt[k], cls=t>=1.1?' good':t<=0.9?' worse':'';
+      return `<span class="cell${cls}" aria-label="${k} lengths target ${minLadder(r.target[k])}">${minLadder(r.target[k])}<small>${(r.p[k]*100).toFixed(r.p[k]<.1?1:0)}%</small></span>`;}).join('');
+    const notes=[`<span class="note">${esc(r.style)}</span>`].concat((r.notes||[]).map(n=>`<span class="note ${plusMinus(n)}">${esc(n)}</span>`));
+    if(r.days_off!=null) notes.push(`<span class="note">${r.days_off}d off</span>`);
+    if(r.or!=null) notes.push(`<span class="note">OR ${r.or}${r.or_chg?(' ('+(r.or_chg>0?'+':'')+r.or_chg+')'):''}</span>`);
+    html+=`<article class="r${r.nr?' nr':''}"><div class="row1"><div class="who"><div class="name"><b>${r.cloth??''}</b>${esc(r.name)}</div><div class="odds">${oddsTxt}</div></div>${cells}</div>
+      <div class="notes">${notes.join('')}</div>`;
+    html+='</article>';
+  }
+  html+='</div>';
+  $('#main').innerHTML=html;
+  $('#refresh').onclick=()=>fetchLive(race);
+}
+function isPast(r){ if(!r.time) return false; const [h,m]=r.time.split(':').map(Number); const n=new Date(); return (h*60+m) < (n.getHours()*60+n.getMinutes()-5) && DATA.date===n.toISOString().slice(0,10); }
+document.addEventListener('click',e=>{
+  const c=e.target.closest('[data-c]'); if(c){state.course=c.dataset.c; state.race=null; render(); go(); return;}
+  const r=e.target.closest('[data-r]'); if(r){state.race=r.dataset.r; render(); go(); return;}
+});
+function go(){ const race=DATA.races.find(r=>r.race_id===state.race); if(!race) return; fetchLive(race); clearInterval(timer); timer=setInterval(()=>{ if(!document.hidden) fetchLive(race) },60000); }
+fetch('today.json',{cache:'no-store'}).then(r=>r.json()).then(j=>{ DATA=j;
+  $('#meta').innerHTML=`${esc(j.date)}<br>built ${esc(j.built||'')}`;
+  if(!j.races.length){ $('#main').innerHTML='<div class="empty">No GB jumps races in today\'s file.</div>'; return; }
+  render(); go(); }).catch(e=>{ $('#main').innerHTML='<div class="empty">Could not load today\'s card file ('+esc(e.message)+').</div>'; });
+</script>
+</body>
+</html>
