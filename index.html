@@ -127,8 +127,11 @@ async function fetchLive(race){
     const r=await fetch('https://www.sportinglife.com/api/horse-racing/race/'+race.race_id,{cache:'no-store'});
     if(!r.ok) throw new Error('HTTP '+r.status);
     const j=await r.json(); const byName={};
-    for(const x of j.rides||[]){ const b=x.betting||{}, h=b.historical_odds||[];
-      byName[norm(x.horse&&x.horse.name)]={cur:parsePrice(b.current_odds), op:h.length?parsePrice(h[0]):null, nr:x.ride_status==='NONRUNNER', hist:h}; }
+    const stage=(j.race_summary&&j.race_summary.race_stage)||'';
+    const done=/WEIGHEDIN|RESULT|FINISHED|OFF/.test(stage);   // after the off current_odds is the SP; before it, it is the morning forecast
+    for(const x of j.rides||[]){ const b=x.betting||{}, h=(b.historical_odds||[]).map(parsePrice).filter(Boolean);
+      const cur= done ? parsePrice(b.current_odds) : (h.length ? h[h.length-1] : parsePrice(b.current_odds));
+      byName[norm(x.horse&&x.horse.name)]={cur, op:h.length?h[0]:null, nr:x.ride_status==='NONRUNNER', hist:h}; }
     state.live[race.race_id]={byName,at:new Date(),stage:j.race_summary&&j.race_summary.race_stage};
     render();
   }catch(e){ if(st){st.textContent='Could not reach Sporting Life ('+e.message+'). Showing morning prices.';st.className='status err'} }
