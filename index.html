@@ -106,7 +106,9 @@ function compute(race){
   });
   const act=rows.filter(r=>!r.nr&&r.cur);
   const tot=act.reduce((s,r)=>s+1/r.cur,0);
-  act.forEach(r=>r.share=(1/r.cur)/tot);
+  // remove the over-round the way the market does (power method): share = (1/price)^k with k set so shares sum to 1
+  let k=1; if(tot>1.0001){ let lo=1, hi=6; for(let i=0;i<60;i++){ const m=(lo+hi)/2, s=act.reduce((a,r)=>a+Math.pow(1/r.cur,m),0); if(s>1) lo=m; else hi=m; } k=(lo+hi)/2; }
+  act.forEach(r=>r.share= tot>1.0001 ? Math.pow(1/r.cur,k) : (1/r.cur)/tot);
   const fav=Math.max(...act.map(r=>r.share)), nLive=act.filter(r=>r.share>=.05).length, ran=act.length;
   [...act].sort((a,b)=>b.share-a.share).forEach((r,i)=>r.rank=i+1);
   act.forEach(r=>{
