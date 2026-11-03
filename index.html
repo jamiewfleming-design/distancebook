@@ -124,15 +124,22 @@ function norm(s){return String(s||'').toLowerCase().replace(/\s*\([a-z]{2,3}\)\s
 async function fetchLive(race){
   const st=$('#status'); if(st){st.textContent='updating prices…';st.className='status'}
   try{
-    const r=await fetch('https://www.sportinglife.com/api/horse-racing/race/'+race.race_id,{cache:'no-store'});
+    const [r,rb]=await Promise.all([
+      fetch('https://www.sportinglife.com/api/horse-racing/race/'+race.race_id,{cache:'no-store'}),
+      fetch('https://www.sportinglife.com/api/horse-racing/v2/racing/betting/'+race.race_id,{cache:'no-store'}).catch(()=>null)]);
     if(!r.ok) throw new Error('HTTP '+r.status);
     const j=await r.json(); const byName={};
+    const book={};   // bookmakers' current win prices (what the live-show page shows): middle price per horse
+    try{ if(rb&&rb.ok){ const jb=await rb.json();
+      for(const x of jb.rides||[]){ const ps=(x.bookmakerOdds||[]).filter(o=>!o.outcome||o.outcome==='Win').map(o=>+o.decimalOdds).filter(v=>v>1).sort((a,b)=>a-b);
+        if(ps.length) book[norm(x.horse_name)]=ps[Math.floor((ps.length-1)/2)]; } } }catch(_){}
     const stage=(j.race_summary&&j.race_summary.race_stage)||'';
     const done=/WEIGHEDIN|RESULT|FINISHED|OFF/.test(stage);   // after the off current_odds is the SP; before it, it is the morning forecast
     for(const x of j.rides||[]){ const b=x.betting||{}, h=(b.historical_odds||[]).map(parsePrice).filter(Boolean);
-      const cur= done ? parsePrice(b.current_odds) : (h.length ? h[h.length-1] : parsePrice(b.current_odds));
+      const bk=book[norm(x.horse&&x.horse.name)];
+      const cur= done ? parsePrice(b.current_odds) : (bk || (h.length ? h[h.length-1] : parsePrice(b.current_odds)));
       byName[norm(x.horse&&x.horse.name)]={cur, op:h.length?h[0]:null, nr:x.ride_status==='NONRUNNER', hist:h}; }
-    state.live[race.race_id]={byName,at:new Date(),stage:j.race_summary&&j.race_summary.race_stage};
+    state.live[race.race_id]={byName,at:new Date(),stage,done};
     render();
   }catch(e){ if(st){st.textContent='Could not reach Sporting Life ('+e.message+'). Showing morning prices.';st.className='status err'} }
 }
@@ -150,7 +157,7 @@ function render(){
   const race=DATA.races.find(r=>r.race_id===state.race);
   if(!race){$('#main').innerHTML='<div class="empty">No GB jumps races today.</div>';return}
   const c=compute(race), live=state.live[race.race_id];
-  const when=live? 'Prices '+live.at.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'})+' (Sporting Life)' : 'Morning prices';
+  const when=live? 'Prices '+live.at.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'})+(live.done?' (SP)':' (bookmakers via Sporting Life)') : 'Morning prices';
   let html=`<section class="racehead"><h2>${esc(race.time)} ${esc(race.course)} · ${esc(race.name)}</h2>
    <div class="facts"><span>${esc(race.distance)}</span><span>${esc(race.going||'')}</span><span>${({Turf:'Flat turf',AW:'All-weather'})[race.code]||race.code}${race.hcap?' handicap':''}</span><span>Class ${esc(race.class||'–')}</span><span>${c.ran} runners, ${c.nLive} at 16/1 or shorter</span><span>Book ${(c.book*100).toFixed(0)}%</span></div></section>
    <div class="bar"><span id="status" class="status">${when}</span><span class="right"><button class="toggle" id="top2" aria-pressed="${state.top2}">Favs only</button><button class="btn" id="refresh">Refresh</button></span></div>
