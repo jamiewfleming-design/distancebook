@@ -149,7 +149,7 @@ async function fetchLive(race){
     render();
   }catch(e){ if(st){st.textContent='Could not reach Sporting Life ('+e.message+'). Showing morning prices.';st.className='status err'} }
 }
-function plusMinus(n){ const plus=['won 5L+ LTO','OR down 4+','lone leader','leader, contested','maiden'], minus=['won <2L LTO','OR up','wins narrowly'];
+function plusMinus(n){ const plus=['won 5L+ LTO','OR down 4+','lone leader','leader, contested','maiden','headgear off'], minus=['won <2L LTO','OR up','wins narrowly'];
   return plus.includes(n)?'plus':minus.includes(n)?'minus':''; }
 function render(){
   if(!DATA) return;
