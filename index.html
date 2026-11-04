@@ -261,6 +261,10 @@ function renderMeeting(){
   const lo=mt.lo!=null&&mt.lo!==''?+mt.lo:Math.round(fa*2)/2, hi=mt.hi!=null&&mt.hi!==''?+mt.hi:Math.round(fb*2)/2, off=parsePrice(mt.price)||2.75;
   const [pu,pm,po]=bandProbs(tot,lo,hi), exp=ds.reduce((a,x)=>a+x.mean,0), settled=ds.filter(x=>x.settled).length;
   const f2=v=>(+v.toFixed(2)).toString();
+  // spread: fair value is the expected total (bets pay per length); also the median and middle half
+  let mean=0, c=0, q25=null, q50=null, q75=null; for(let i=0;i<tot.length;i++){ mean+=i*MT.step*tot[i]; c+=tot[i];
+    if(q25===null&&c>=.25) q25=i*MT.step; if(q50===null&&c>=.5) q50=i*MT.step; if(q75===null&&c>=.75) q75=i*MT.step; }
+  const sq=parseFloat(mt.sell), bq=parseFloat(mt.buy);
   const row=(lab,p)=>{ const ev=p*off-1; return `<tr class="${ev>0?'val':''}"><td>${lab}</td><td class="big">${(p*100).toFixed(1)}%</td><td class="big">${p>0.002?fmtFrac(1/p):'–'}</td><td>${ev>0?'+':''}${(ev*100).toFixed(0)}%</td></tr>`; };
   const lab={Chase:'Chase',Hurdle:'Hurdle',Turf:'Flat',AW:'AW','NH Flat':'Bumper'};
   let html=`<section class="racehead"><h2>${esc(state.course)} · meeting total distance</h2>
@@ -275,12 +279,21 @@ function renderMeeting(){
     <div class="inputs">Shop lines <input id="mtlo" inputmode="decimal" value="${esc(lo)}"> and <input id="mthi" inputmode="decimal" value="${esc(hi)}"> · each at <input id="mtpr" value="${esc(mt.price)}"></div>
     <table><thead><tr><th>Outcome</th><th>Chance</th><th>Fair</th><th>EV at ${esc(mt.price)}</th></tr></thead><tbody>
     ${row('Under '+lo, pu)}${row(lo+' to '+hi, pm)}${row('Over '+hi, po)}</tbody></table>
+    <table><thead><tr><th>Spread</th><th></th></tr></thead><tbody>
+      <tr><td>Fair value (expected total)</td><td class="big">${mean.toFixed(1)}</td></tr>
+      <tr><td>Fair quote (no margin)</td><td class="big">${(mean-.5).toFixed(1)} – ${(mean+.5).toFixed(1)}</td></tr>
+      <tr><td>Median / middle half</td><td>${f2(q50)} · ${f2(q25)}–${f2(q75)}</td></tr></tbody></table>
+    <div class="inputs">Their quote: sell <input id="mtsell" inputmode="decimal" value="${esc(mt.sell??'')}"> buy <input id="mtbuy" inputmode="decimal" value="${esc(mt.buy??'')}"></div>
+    ${isFinite(sq)&&isFinite(bq)?`<table><tbody>
+      <tr class="${mean-bq>0?'val':''}"><td>Buy at ${bq}</td><td class="big">${mean-bq>=0?'+':''}${(mean-bq).toFixed(1)}</td><td>per £1 a length, expected</td></tr>
+      <tr class="${sq-mean>0?'val':''}"><td>Sell at ${sq}</td><td class="big">${sq-mean>=0?'+':''}${(sq-mean).toFixed(1)}</td><td>per £1 a length, expected</td></tr></tbody></table>`:''}
+    <p class="mtnote">Most meetings finish below the expected total, because a few big-margin races drag the average up. Selling wins more often than not, but buying gains more when it lands. Typical miss ±${Math.sqrt(tot.reduce((a,p,i)=>a+p*(i*MT.step-mean)**2,0)).toFixed(1)}L.</p>
     <table class="races"><thead><tr><th>Race</th><th>Type</th><th>Distance</th></tr></thead><tbody>
     ${ds.map(x=>`<tr><td>${esc(x.r.time)}</td><td>${lab[x.r.code]||x.r.code}${x.r.hcap?' hcap':''}</td><td>${x.settled?'<b>'+x.mean.toFixed(2).replace(/\.?0+$/,'')+'L result</b>':'about '+x.mean.toFixed(1)+'L'}</td></tr>`).join('')}</tbody></table>
     <p class="mtnote">Each race's spread of winning distances comes from 2024–26 races the model rated alike (bumpers treated as hurdles, from prices). Exactly ${lo} or ${hi} counts in the middle band. Fair odds carry no margin; green = positive expected value at the offered price.</p></div>`;
   $('#main').innerHTML=html;
   $('#refresh').onclick=()=>fetchMeeting();
-  for(const [id,key] of [['mtlo','lo'],['mthi','hi'],['mtpr','price']]) $('#'+id).onchange=e=>{ mt[key]=e.target.value; renderMeeting(); };
+  for(const [id,key] of [['mtlo','lo'],['mthi','hi'],['mtpr','price'],['mtsell','sell'],['mtbuy','buy']]) $('#'+id).onchange=e=>{ mt[key]=e.target.value; renderMeeting(); };
 }
 function isPast(r){ if(!r.time) return false; const [h,m]=r.time.split(':').map(Number); const n=new Date(); return (h*60+m) < (n.getHours()*60+n.getMinutes()-5) && DATA.date===n.toISOString().slice(0,10); }
 document.addEventListener('click',e=>{
