@@ -80,7 +80,7 @@ footer{color:var(--muted);font-size:12px;padding-block:8px 24px}
   <div class="chips" id="races" role="group" aria-label="Race"></div>
 </div></div>
 <main class="wrap" id="main"><div class="empty">Loading today's cards…</div></main>
-<footer class="wrap">Target = the shortest price worth taking for a win by at least that many lengths (jumps 2/4/6/8, flat 1–5), treating the current price as the SP. It trusts the model's view only as far as it held up on 2023–26 races and adds a safety margin (10% at the shorter margins rising to 20% at the longest). Runners are listed in price order. Struck through: hurdle favourites the model marks down at 8L, which lost money in testing. Green: the model rates this runner's chance clearly above what its price alone implies. Orange: clearly below. Small figure: estimated chance. Dashed row: chance the race is won by at least that margin, whoever wins. "If it wins": the chance this runner's win would be by at least each margin. GB jumps, flat turf and all-weather. No bumpers.</footer>
+<footer class="wrap">Target = the shortest price worth taking for a win by at least that many lengths (jumps 2/4/6/8, flat 1–5), treating the current price as the SP. It trusts the model's view only as far as it held up on 2023–26 races and adds a safety margin (10% at the shorter margins rising to 20% at the longest). Runners are listed in price order. Struck through: hurdle favourites the model marks down at 8L, which lost money in testing. Green: the model rates this runner's chance clearly above what its price alone implies. Orange: clearly below. Small figure: estimated chance. "From" is the first on-course show price; before the show the page only shows Sporting Life's tissue for reference and treats the price as unmoved. Dashed row: chance the race is won by at least that margin, whoever wins. "If it wins": the chance this runner's win would be by at least each margin. GB jumps, flat turf and all-weather. No bumpers.</footer>
 <script>
 const LADDER=[[1,10],[1,8],[1,6],[1,5],[2,9],[1,4],[2,7],[1,3],[4,11],[2,5],[4,9],[1,2],[8,15],[4,7],[8,13],[4,6],[8,11],[4,5],[5,6],[10,11],[1,1],[11,10],[6,5],[5,4],[11,8],[6,4],[13,8],[7,4],[15,8],[2,1],[85,40],[9,4],[12,5],[5,2],[11,4],[3,1],[10,3],[7,2],[4,1],[9,2],[5,1],[11,2],[6,1],[13,2],[7,1],[15,2],[8,1],[17,2],[9,1],[10,1],[11,1],[12,1],[14,1],[16,1],[18,1],[20,1],[22,1],[25,1],[28,1],[33,1],[40,1],[50,1],[66,1],[80,1],[100,1],[125,1],[150,1],[200,1],[250,1],[300,1],[400,1],[500,1]];
 let DATA=null, state={course:null, race:null, live:{}}, timer=null;
@@ -90,7 +90,7 @@ function parsePrice(s){ // accepts 9/2, 4.5 (fractional odds-to-1) or "evs"
   if(!s) return null; s=String(s).trim().toLowerCase(); if(s==='evs'||s==='evens'||s==='ev') return 2;
   let m=s.match(/^(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/); if(m) return 1+(+m[1])/(+m[2]);
   m=s.match(/^(\d+(?:\.\d+)?)$/); if(m) return 1+(+m[1]); return null; }
-function minLadder(dec){ const f=dec-1; for(const [a,b] of LADDER){ if(a/b>=f-1e-9) return a+'/'+b; } return Math.round(f)+'/1'; }
+function minLadder(dec){ const f=dec-1; for(const [a,b] of LADDER){ if(a/b>=f-1e-9) return a+'/'+b; } return '500/1+'; }
 function fmtFrac(dec){ if(dec==null) return '–'; const f=dec-1; let best=LADDER[0],bd=9e9; for(const p of LADDER){const d=Math.abs(p[0]/p[1]-f); if(d<bd){bd=d;best=p}} return f>500? Math.round(f)+'/1' : best[0]+'/'+best[1]; }
 function sig(z){return 1/(1+Math.exp(-z))}
 function priceFeats(share,opDec,curDec,favShare,nLive,ran,hcap){
@@ -104,8 +104,11 @@ function compute(race){
   const rows=race.runners.map(r=>{
     const L=live&&live.byName[norm(r.name)];
     const nr=L? L.nr : false;
-    const cur=L&&L.cur? L.cur : r.morning; const op=L&&L.op? L.op : (r.op||r.morning);
-    return {...r,nr,cur,opd:op};
+    const cur=L&&L.cur? L.cur : r.morning;
+    // opening price = first on-course show only (what the model was trained on). Before the show there is no move:
+    // the Sporting Life forecast (tissue) is not a market price, so it never counts as steam or drift.
+    const op=L&&L.op? L.op : cur;
+    return {...r,nr,cur,opd:op,tissue:r.morning,hasShow:!!(L&&L.op)};
   });
   const act=rows.filter(r=>!r.nr&&r.cur);
   const tot=act.reduce((s,r)=>s+1/r.cur,0);
@@ -172,7 +175,7 @@ function render(){
   for(const r of rows){
     const mv=r.opd&&r.cur? r.opd/r.cur : 1;
     const mvc=mv>=1.1?'st':mv<=0.9?'dr':'';
-    const oddsTxt=r.nr? 'non-runner' : `<span class="now">${fmtFrac(r.cur)}</span>${r.opd&&Math.abs(mv-1)>.02?` <span class="${mvc}">from ${fmtFrac(r.opd)}</span>`:''} · win ${(r.share*100||0).toFixed(0)}%`;
+    const oddsTxt=r.nr? 'non-runner' : `<span class="now">${fmtFrac(r.cur)}</span>${r.hasShow&&Math.abs(mv-1)>.02?` <span class="${mvc}">from ${fmtFrac(r.opd)}</span>`:(!r.hasShow&&r.tissue&&Math.abs(r.tissue/r.cur-1)>.02?` <span>tissue ${fmtFrac(r.tissue)}</span>`:'')} · win ${(r.share*100||0).toFixed(0)}%`;
     const cells=race.th.map(k=>{ if(r.nr||!r.target) return '<span class="cell">–</span>';
       const t=r.tilt[k]; let cls=t>=1.1?' good':t<=0.9?' worse':'';
       if(race.code==='Hurdle'&&k==='8'&&t<=0.9&&r.rank<=2) cls+=' skip';
