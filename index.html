@@ -68,6 +68,17 @@ h1{font:700 26px/1 var(--display);letter-spacing:.02em;margin:0;text-transform:u
 .note{font:500 11px var(--body);padding:2px 7px;border-radius:999px;background:var(--chip);color:var(--muted)}
 .note.plus{background:var(--value-bg);color:var(--value)} .note.minus{background:var(--warn-bg);color:var(--warn)}
 .cell.worse{background:var(--warn-bg);color:var(--warn)}
+.mt{display:grid;gap:10px;padding:6px 0 28px}
+.mt table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.mt th,.mt td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:right;font-size:14px}
+.mt th:first-child,.mt td:first-child{text-align:left}
+.mt th{font:600 11px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.mt .big{font:600 17px var(--mono)}
+.mt tr.val td{background:var(--value-bg);color:var(--value)}
+.mt .inputs{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--muted)}
+.mt input{width:64px;padding:6px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);font:600 14px var(--mono)}
+.mt .races td{font-size:13px}
+.mt .mtnote{font-size:12px;color:var(--muted);margin:0}
 .empty{padding:40px 0;color:var(--muted);text-align:center}
 footer{color:var(--muted);font-size:12px;padding-block:8px 24px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -80,7 +91,7 @@ footer{color:var(--muted);font-size:12px;padding-block:8px 24px}
   <div class="chips" id="races" role="group" aria-label="Race"></div>
 </div></div>
 <main class="wrap" id="main"><div class="empty">Loading today's cards…</div></main>
-<footer class="wrap">Target = the shortest price worth taking for a win by at least that many lengths (jumps 2/4/6/8, flat 1–5), treating the current price as the SP. It trusts the model's view only as far as it held up on 2023–26 races and adds a safety margin (10% at the shorter margins rising to 20% at the longest). Runners are listed in price order. Struck through: hurdle favourites the model marks down at 8L, which lost money in testing. Green: the model rates this runner's chance clearly above what its price alone implies. Orange: clearly below. Small figure: estimated chance. "From" is the first on-course show price; before the show the page only shows Sporting Life's tissue for reference and treats the price as unmoved. Dashed row: chance the race is won by at least that margin, whoever wins. "If it wins": the chance this runner's win would be by at least each margin. GB jumps, flat turf and all-weather. No bumpers.</footer>
+<footer class="wrap">Target = the shortest price worth taking for a win by at least that many lengths (jumps 2/4/6/8, flat 1–5), treating the current price as the SP. It trusts the model's view only as far as it held up on 2023–26 races and adds a safety margin (10% at the shorter margins rising to 20% at the longest). Runners are listed in price order. Struck through: hurdle favourites the model marks down at 8L, which lost money in testing. Green: the model rates this runner's chance clearly above what its price alone implies. Orange: clearly below. Small figure: estimated chance. "From" is the first on-course show price; before the show the page only shows Sporting Life's tissue for reference and treats the price as unmoved. Dashed row: chance the race is won by at least that margin, whoever wins. "If it wins": the chance this runner's win would be by at least each margin. GB jumps, flat turf and all-weather. Bumpers have no targets but count in the meeting total (treated as hurdles). Meeting total: the last chip in each course's race list.</footer>
 <script>
 const LADDER=[[1,10],[1,8],[1,6],[1,5],[2,9],[1,4],[2,7],[1,3],[4,11],[2,5],[4,9],[1,2],[8,15],[4,7],[8,13],[4,6],[8,11],[4,5],[5,6],[10,11],[1,1],[11,10],[6,5],[5,4],[11,8],[6,4],[13,8],[7,4],[15,8],[2,1],[85,40],[9,4],[12,5],[5,2],[11,4],[3,1],[10,3],[7,2],[4,1],[9,2],[5,1],[11,2],[6,1],[13,2],[7,1],[15,2],[8,1],[17,2],[9,1],[10,1],[11,1],[12,1],[14,1],[16,1],[18,1],[20,1],[22,1],[25,1],[28,1],[33,1],[40,1],[50,1],[66,1],[80,1],[100,1],[125,1],[150,1],[200,1],[250,1],[300,1],[400,1],[500,1]];
 let DATA=null, state={course:null, race:null, live:{}}, timer=null;
@@ -130,9 +141,17 @@ function compute(race){
   return {rows,ran,nLive,book:tot,race_p};
 }
 function norm(s){return String(s||'').toLowerCase().replace(/\s*\([a-z]{2,3}\)\s*$/,'').replace(/[^a-z0-9]/g,'')}
+const LWORDS={nse:.05,nose:.05,sh:.1,shd:.1,hd:.2,nk:.3,dht:0,dh:0,dist:999};
+function parseLen(s){ if(s==null) return null; s=String(s).trim().toLowerCase(); if(s in LWORDS) return LWORDS[s];
+  let t=0, ok=false; for(const part of s.split(/\s+/)){ if(/^\d+$/.test(part)){t+=+part;ok=true} else if(part in {'½':1,'¼':1,'¾':1}){t+={'½':.5,'¼':.25,'¾':.75}[part];ok=true}
+    else { const m=part.match(/^(\d+)([½¼¾])$/); if(m){t+=+m[1]+{'½':.5,'¼':.25,'¾':.75}[m[2]];ok=true} } } return ok?t:null; }
 async function fetchLive(race){
   const st=$('#status'); if(st){st.textContent='updating prices…';st.className='status'}
-  try{
+  try{ state.live[race.race_id]=await getLive(race); render(); }
+  catch(e){ if(st){st.textContent='Could not reach Sporting Life ('+e.message+'). Showing morning prices.';st.className='status err'} }
+}
+async function getLive(race){
+  {
     const [r,rb]=await Promise.all([
       fetch('https://www.sportinglife.com/api/horse-racing/race/'+race.race_id,{cache:'no-store'}),
       fetch('https://www.sportinglife.com/api/horse-racing/v2/racing/betting/'+race.race_id,{cache:'no-store'}).catch(()=>null)]);
@@ -148,9 +167,13 @@ async function fetchLive(race){
       const bk=book[norm(x.horse&&x.horse.name)];
       const cur= done ? parsePrice(b.current_odds) : (bk || (h.length ? h[h.length-1] : parsePrice(b.current_odds)));
       byName[norm(x.horse&&x.horse.name)]={cur, op:h.length?h[0]:null, nr:x.ride_status==='NONRUNNER', hist:h}; }
-    state.live[race.race_id]={byName,at:new Date(),stage,done};
-    render();
-  }catch(e){ if(st){st.textContent='Could not reach Sporting Life ('+e.message+'). Showing morning prices.';st.className='status err'} }
+    // official result: winning distance = the runner-up's distance behind the winner (dead heat = 0, no 2nd finisher = distance)
+    let result=null; const fin=(j.rides||[]).filter(x=>+x.finish_position>0);
+    if(/WEIGHEDIN|RESULT|FINISHED/.test(stage) && fin.some(x=>+x.finish_position===1)){
+      const w=fin.filter(x=>+x.finish_position===1), sec=fin.find(x=>+x.finish_position===2);
+      result = w.length>1 ? 0 : (sec ? parseLen(sec.finish_distance) : 999); if(result==null) result=null; }
+    return {byName,at:new Date(),stage,done,result};
+  }
 }
 function plusMinus(n){ const plus=['won 5L+ LTO','OR down 4+','lone leader','leader, contested','maiden','headgear off'], minus=['won <2L LTO','OR up','wins narrowly'];
   return plus.includes(n)?'plus':minus.includes(n)?'minus':''; }
@@ -159,10 +182,12 @@ function render(){
   const courses=[...new Set(DATA.races.map(r=>r.course))];
   if(!state.course||!courses.includes(state.course)) state.course=courses[0];
   $('#courses').innerHTML=courses.map(c=>`<button class="chip" aria-pressed="${c===state.course}" data-c="${esc(c)}">${esc(c)}</button>`).join('');
-  const races=DATA.races.filter(r=>r.course===state.course);
-  if(!state.race||!races.find(r=>r.race_id===state.race)) state.race=(races.find(r=>!isPast(r))||races[0]||{}).race_id;
+  const races=DATA.races.filter(r=>r.course===state.course&&!r.meeting_only);
+  if(!state.race||(state.race!=='MEET'&&!races.find(r=>r.race_id===state.race))) state.race=(races.find(r=>!isPast(r))||races[0]||{}).race_id;
   const lab={Chase:'Chase',Hurdle:'Hurdle',Turf:'Flat',AW:'AW'};
-  $('#races').innerHTML=races.map(r=>`<button class="chip race-chip" aria-pressed="${r.race_id===state.race}" data-r="${r.race_id}">${esc(r.time)}<small>${lab[r.code]||r.code}${r.hcap?' hcap':''} · ${r.ran}</small></button>`).join('');
+  $('#races').innerHTML=races.map(r=>`<button class="chip race-chip" aria-pressed="${r.race_id===state.race}" data-r="${r.race_id}">${esc(r.time)}<small>${lab[r.code]||r.code}${r.hcap?' hcap':''} · ${r.ran}</small></button>`).join('')
+    + (MT?`<button class="chip race-chip" aria-pressed="${state.race==='MEET'}" data-r="MEET">Meeting<small>total distance</small></button>`:'');
+  if(state.race==='MEET'){ renderMeeting(); return; }
   const race=DATA.races.find(r=>r.race_id===state.race);
   if(!race){$('#main').innerHTML='<div class="empty">No GB jumps races today.</div>';return}
   const c=compute(race), live=state.live[race.race_id];
@@ -194,12 +219,63 @@ function render(){
   $('#main').innerHTML=html;
   $('#refresh').onclick=()=>fetchLive(race);
 }
+// ---------- meeting total winning distance (capped 12L flat / 30L jumps), three-way market
+let MT=null; state.mt={lo:10, hi:14, price:'7/4'};
+async function fetchMeeting(){
+  const rs=DATA.races.filter(r=>r.course===state.course), st=$('#status'); if(st){st.textContent='updating all races…';st.className='status'}
+  await Promise.all(rs.map(async r=>{ try{ state.live[r.race_id]=await getLive(r) }catch(_){} }));
+  if(state.race==='MEET') render();
+}
+function powerShares(prices){ const tot=prices.reduce((a,p)=>a+1/p,0); if(tot<=1.0001) return prices.map(p=>(1/p)/tot);
+  let lo=1,hi=6; for(let i=0;i<60;i++){ const m=(lo+hi)/2, s=prices.reduce((a,p)=>a+Math.pow(1/p,m),0); if(s>1) lo=m; else hi=m; } const k=(lo+hi)/2; return prices.map(p=>Math.pow(1/p,k)); }
+function raceDist(race){
+  const live=state.live[race.race_id], cap=(race.code==='Turf'||race.code==='AW')?12:30, step=MT.step;
+  if(live&&live.result!=null){ const m=Math.min(live.result,cap); const d={}; d[Math.round(m/step)]=1; return {d, mean:m, settled:true}; }
+  let key=race.code, idx;
+  if(race.meeting_only){ key='Bumper';
+    const pr=race.runners.map(r=>{ const L=live&&live.byName[norm(r.name)]; return L&&L.nr?null:((L&&L.cur)||r.morning) }).filter(Boolean);
+    const sh=powerShares(pr); idx=0;
+    for(const k in MT.bumper_base){ const b=MT.bumper_base[k]; sh.forEach(p=>{ const q=Math.min(.98,Math.max(.002,p)), x=Math.log(q/(1-q)); idx+=sig(b.icpt+b.x*x+b.x2*x*x+b.x3*x*x*x) }) }
+  } else { const c=compute(race); idx=0; c.rows.filter(r=>!r.nr&&r.p).forEach(r=>{ for(const k in r.p) idx+=r.p[k] }); }
+  const t=MT.tables[key]; let b=0; while(b<t.edges.length&&idx>t.edges[b]) b++;
+  const d={}; for(const [i,p] of t.dist[b]) d[i]=p; return {d, mean:t.mean[b], settled:false, band:b+1};
+}
+function meetingProbs(dists, lo, hi){
+  const step=MT.step, N=Math.round(hi/step)+2; let tot=new Float64Array(N); tot[0]=1; let beyond=0;
+  for(const {d} of dists){ const nt=new Float64Array(N); let lost=0;
+    for(let i=0;i<N;i++){ const a=tot[i]; if(!a) continue; for(const j in d){ const s=i+(+j); if(s<N) nt[s]+=a*d[j]; else lost+=a*d[j]; } }
+    beyond+=lost; tot=nt; }
+  const il=Math.round(lo/step), ih=Math.round(hi/step); let pu=0, pm=0; for(let i=0;i<N;i++){ if(i<il) pu+=tot[i]; else if(i<=ih) pm+=tot[i]; }
+  return [pu, pm, Math.max(0,1-pu-pm)];
+}
+function renderMeeting(){
+  const rs=DATA.races.filter(r=>r.course===state.course);
+  const ds=rs.map(r=>({r,...raceDist(r)})), lo=+state.mt.lo, hi=+state.mt.hi, off=parsePrice(state.mt.price)||2.75;
+  const [pu,pm,po]=meetingProbs(ds,lo,hi), exp=ds.reduce((a,x)=>a+x.mean,0), settled=ds.filter(x=>x.settled).length;
+  const row=(lab,p)=>{ const ev=p*off-1; return `<tr class="${ev>0?'val':''}"><td>${lab}</td><td class="big">${(p*100).toFixed(1)}%</td><td class="big">${p>0.002?fmtFrac(1/p):'–'}</td><td>${ev>0?'+':''}${(ev*100).toFixed(0)}%</td></tr>`; };
+  const lab={Chase:'Chase',Hurdle:'Hurdle',Turf:'Flat',AW:'AW','NH Flat':'Bumper'};
+  let html=`<section class="racehead"><h2>${esc(state.course)} · meeting total distance</h2>
+    <div class="facts"><span>${rs.length} races</span><span>${settled} settled</span><span>expected total about ${exp.toFixed(1)}L</span><span>caps: 12L flat, 30L jumps</span></div></section>
+    <div class="bar"><span id="status" class="status">Live prices for every race; settled races use the official distance</span><button class="btn" id="refresh">Refresh</button></div>
+    <div class="mt"><div class="inputs">Lines <input id="mtlo" inputmode="decimal" value="${esc(state.mt.lo)}"> and <input id="mthi" inputmode="decimal" value="${esc(state.mt.hi)}"> · offered <input id="mtpr" value="${esc(state.mt.price)}"></div>
+    <table><thead><tr><th>Outcome</th><th>Chance</th><th>Fair</th><th>EV at ${esc(state.mt.price)}</th></tr></thead><tbody>
+    ${row('Under '+lo, pu)}${row(lo+' to '+hi, pm)}${row('Over '+hi, po)}</tbody></table>
+    <table class="races"><thead><tr><th>Race</th><th>Type</th><th>Distance</th></tr></thead><tbody>
+    ${ds.map(x=>`<tr><td>${esc(x.r.time)}</td><td>${lab[x.r.code]||x.r.code}${x.r.hcap?' hcap':''}</td><td>${x.settled?'<b>'+x.mean.toFixed(2).replace(/\.?0+$/,'')+'L result</b>':'about '+x.mean.toFixed(1)+'L'}</td></tr>`).join('')}</tbody></table>
+    <p class="mtnote">Each race's spread of winning distances comes from 2024–26 races the model rated alike (bumpers treated as hurdles, from prices). Exactly ${lo} or ${hi} counts in the middle band. Fair odds carry no margin; green = positive expected value at the offered price.</p></div>`;
+  $('#main').innerHTML=html;
+  $('#refresh').onclick=()=>fetchMeeting();
+  for(const [id,key] of [['mtlo','lo'],['mthi','hi'],['mtpr','price']]) $('#'+id).onchange=e=>{ state.mt[key]=e.target.value; renderMeeting(); };
+}
 function isPast(r){ if(!r.time) return false; const [h,m]=r.time.split(':').map(Number); const n=new Date(); return (h*60+m) < (n.getHours()*60+n.getMinutes()-5) && DATA.date===n.toISOString().slice(0,10); }
 document.addEventListener('click',e=>{
   const c=e.target.closest('[data-c]'); if(c){state.course=c.dataset.c; state.race=null; render(); go(); return;}
   const r=e.target.closest('[data-r]'); if(r){state.race=r.dataset.r; render(); go(); return;}
 });
-function go(){ const race=DATA.races.find(r=>r.race_id===state.race); if(!race) return; fetchLive(race); clearInterval(timer); timer=setInterval(()=>{ if(!document.hidden) fetchLive(race) },60000); }
+function go(){
+  if(state.race==='MEET'){ fetchMeeting(); clearInterval(timer); timer=setInterval(()=>{ if(!document.hidden) fetchMeeting() },90000); return; }
+  const race=DATA.races.find(r=>r.race_id===state.race); if(!race) return; fetchLive(race); clearInterval(timer); timer=setInterval(()=>{ if(!document.hidden) fetchLive(race) },60000); }
+fetch('meeting_tables.json').then(r=>r.json()).then(j=>{ MT=j; if(DATA) render(); }).catch(()=>{});
 fetch('today.json',{cache:'no-store'}).then(r=>r.json()).then(j=>{ DATA=j;
   $('#meta').innerHTML=`${esc(j.date)}<br>built ${esc(j.built||'')}`;
   if(!j.races.length){ $('#main').innerHTML='<div class="empty">No GB jumps races in today\'s file.</div>'; return; }
