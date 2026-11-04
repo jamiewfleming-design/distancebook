@@ -220,7 +220,7 @@ function render(){
   $('#refresh').onclick=()=>fetchLive(race);
 }
 // ---------- meeting total winning distance (capped 12L flat / 30L jumps), three-way market
-let MT=null; state.mt={lo:10, hi:14, price:'7/4'};
+let MT=null; state.mt={};   // per course: {lo, hi, price}; lines default to our fair lines until edited
 async function fetchMeeting(){
   const rs=DATA.races.filter(r=>r.course===state.course), st=$('#status'); if(st){st.textContent='updating all races…';st.className='status'}
   await Promise.all(rs.map(async r=>{ try{ state.live[r.race_id]=await getLive(r) }catch(_){} }));
@@ -240,32 +240,47 @@ function raceDist(race){
   const t=MT.tables[key]; let b=0; while(b<t.edges.length&&idx>t.edges[b]) b++;
   const d={}; for(const [i,p] of t.dist[b]) d[i]=p; return {d, mean:t.mean[b], settled:false, band:b+1};
 }
-function meetingProbs(dists, lo, hi){
-  const step=MT.step, N=Math.round(hi/step)+2; let tot=new Float64Array(N); tot[0]=1; let beyond=0;
-  for(const {d} of dists){ const nt=new Float64Array(N); let lost=0;
-    for(let i=0;i<N;i++){ const a=tot[i]; if(!a) continue; for(const j in d){ const s=i+(+j); if(s<N) nt[s]+=a*d[j]; else lost+=a*d[j]; } }
-    beyond+=lost; tot=nt; }
-  const il=Math.round(lo/step), ih=Math.round(hi/step); let pu=0, pm=0; for(let i=0;i<N;i++){ if(i<il) pu+=tot[i]; else if(i<=ih) pm+=tot[i]; }
-  return [pu, pm, Math.max(0,1-pu-pm)];
+function meetingDist(dists){       // full distribution of the meeting total, in MT.step units
+  const N=dists.reduce((a,x)=>a+Math.max(...Object.keys(x.d).map(Number)),0)+1; let tot=new Float64Array(N); tot[0]=1;
+  for(const {d} of dists){ const nt=new Float64Array(N), ks=Object.keys(d).map(Number), vs=ks.map(k=>d[k]);
+    for(let i=0;i<N;i++){ const a=tot[i]; if(!a) continue; for(let j=0;j<ks.length;j++){ const t=i+ks[j]; if(t<N) nt[t]+=a*vs[j]; } }
+    tot=nt; }
+  return tot;
+}
+function bandProbs(tot, lo, hi){ const step=MT.step, il=Math.round(lo/step), ih=Math.round(hi/step); let pu=0, pm=0;
+  for(let i=0;i<tot.length;i++){ if(i<il) pu+=tot[i]; else if(i<=ih) pm+=tot[i]; } return [pu, pm, Math.max(0,1-pu-pm)]; }
+function fairLines(tot){            // lines that split the meeting into thirds: P(under) and P(over) as close to 1/3 as the steps allow
+  const step=MT.step; let c=0, a=null, b=null;
+  for(let i=0;i<tot.length;i++){ if(a===null&&c+tot[i]>1/3) a=i; c+=tot[i]; if(b===null&&c>=2/3) b=i; }
+  return [a*step, b*step];
 }
 function renderMeeting(){
   const rs=DATA.races.filter(r=>r.course===state.course);
-  const ds=rs.map(r=>({r,...raceDist(r)})), lo=+state.mt.lo, hi=+state.mt.hi, off=parsePrice(state.mt.price)||2.75;
-  const [pu,pm,po]=meetingProbs(ds,lo,hi), exp=ds.reduce((a,x)=>a+x.mean,0), settled=ds.filter(x=>x.settled).length;
+  const ds=rs.map(r=>({r,...raceDist(r)})), tot=meetingDist(ds), [fa,fb]=fairLines(tot);
+  const mt=state.mt[state.course]||(state.mt[state.course]={price:'7/4'});
+  const lo=mt.lo!=null&&mt.lo!==''?+mt.lo:Math.round(fa*2)/2, hi=mt.hi!=null&&mt.hi!==''?+mt.hi:Math.round(fb*2)/2, off=parsePrice(mt.price)||2.75;
+  const [pu,pm,po]=bandProbs(tot,lo,hi), exp=ds.reduce((a,x)=>a+x.mean,0), settled=ds.filter(x=>x.settled).length;
+  const f2=v=>(+v.toFixed(2)).toString();
   const row=(lab,p)=>{ const ev=p*off-1; return `<tr class="${ev>0?'val':''}"><td>${lab}</td><td class="big">${(p*100).toFixed(1)}%</td><td class="big">${p>0.002?fmtFrac(1/p):'–'}</td><td>${ev>0?'+':''}${(ev*100).toFixed(0)}%</td></tr>`; };
   const lab={Chase:'Chase',Hurdle:'Hurdle',Turf:'Flat',AW:'AW','NH Flat':'Bumper'};
   let html=`<section class="racehead"><h2>${esc(state.course)} · meeting total distance</h2>
     <div class="facts"><span>${rs.length} races</span><span>${settled} settled</span><span>expected total about ${exp.toFixed(1)}L</span><span>caps: 12L flat, 30L jumps</span></div></section>
     <div class="bar"><span id="status" class="status">Live prices for every race; settled races use the official distance</span><button class="btn" id="refresh">Refresh</button></div>
-    <div class="mt"><div class="inputs">Lines <input id="mtlo" inputmode="decimal" value="${esc(state.mt.lo)}"> and <input id="mthi" inputmode="decimal" value="${esc(state.mt.hi)}"> · offered <input id="mtpr" value="${esc(state.mt.price)}"></div>
-    <table><thead><tr><th>Outcome</th><th>Chance</th><th>Fair</th><th>EV at ${esc(state.mt.price)}</th></tr></thead><tbody>
+    <div class="mt">
+    <table><thead><tr><th>Our fair lines</th><th></th><th></th></tr></thead><tbody>
+      <tr><td>Under</td><td class="big">${f2(fa)}</td><td></td></tr>
+      <tr><td>Between</td><td class="big">${f2(fa)} – ${f2(fb)}</td><td></td></tr>
+      <tr><td>Over</td><td class="big">${f2(fb)}</td><td></td></tr></tbody></table>
+    <p class="mtnote">Each band a third. If the shop's lines sit above ours, under is the side; below ours, over is. Type their lines in to price them.</p>
+    <div class="inputs">Shop lines <input id="mtlo" inputmode="decimal" value="${esc(lo)}"> and <input id="mthi" inputmode="decimal" value="${esc(hi)}"> · each at <input id="mtpr" value="${esc(mt.price)}"></div>
+    <table><thead><tr><th>Outcome</th><th>Chance</th><th>Fair</th><th>EV at ${esc(mt.price)}</th></tr></thead><tbody>
     ${row('Under '+lo, pu)}${row(lo+' to '+hi, pm)}${row('Over '+hi, po)}</tbody></table>
     <table class="races"><thead><tr><th>Race</th><th>Type</th><th>Distance</th></tr></thead><tbody>
     ${ds.map(x=>`<tr><td>${esc(x.r.time)}</td><td>${lab[x.r.code]||x.r.code}${x.r.hcap?' hcap':''}</td><td>${x.settled?'<b>'+x.mean.toFixed(2).replace(/\.?0+$/,'')+'L result</b>':'about '+x.mean.toFixed(1)+'L'}</td></tr>`).join('')}</tbody></table>
     <p class="mtnote">Each race's spread of winning distances comes from 2024–26 races the model rated alike (bumpers treated as hurdles, from prices). Exactly ${lo} or ${hi} counts in the middle band. Fair odds carry no margin; green = positive expected value at the offered price.</p></div>`;
   $('#main').innerHTML=html;
   $('#refresh').onclick=()=>fetchMeeting();
-  for(const [id,key] of [['mtlo','lo'],['mthi','hi'],['mtpr','price']]) $('#'+id).onchange=e=>{ state.mt[key]=e.target.value; renderMeeting(); };
+  for(const [id,key] of [['mtlo','lo'],['mthi','hi'],['mtpr','price']]) $('#'+id).onchange=e=>{ mt[key]=e.target.value; renderMeeting(); };
 }
 function isPast(r){ if(!r.time) return false; const [h,m]=r.time.split(':').map(Number); const n=new Date(); return (h*60+m) < (n.getHours()*60+n.getMinutes()-5) && DATA.date===n.toISOString().slice(0,10); }
 document.addEventListener('click',e=>{
