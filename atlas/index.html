@@ -149,7 +149,7 @@ const RT=[['all','All races'],['hcap','Handicaps'],['non','Non-handicaps']];
 const title=s=>s.replace(/\b\w/g,m=>m.toUpperCase());
 const courses=[...new Set(rows.map(r=>r.course))].sort();
 const store={get(k,d){try{return localStorage.getItem(k)||d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
-let st={course:store.get('atlas.course','chester'),fsC:'all',fsX:'all',rtC:'all',rtX:'all',metric:'lead_win',band:'5f',kind:'any'};
+let st={course:store.get('atlas.course','chester'),fsC:'all',fsX:'all',rtC:'all',rtX:'all',mi:0,band:'5f',kind:'any'};
 if(!courses.includes(st.course)) st.course=courses[0];
 const $=id=>document.getElementById(id);
 const f0=v=>v==null?'–':Math.round(v)+'';
@@ -181,13 +181,13 @@ function renderCourse(){
   }
   $('out').innerHTML=h+'</tbody></table></div>';
 }
-const METRICS=[['lead_win','Early leaders: win %','pct'],['lead_plc','Early leaders: placed %','pct'],['lead_at1','Early leaders still in front 1f out %','pct'],['w_early','Winners that led early %','pct'],['w_late','Winners hitting the front in the final furlong %','pct'],['w2_back','Winners midfield or further back at 2f out %','pct'],['held_vs_fwd','Held-up place rate vs forward (100 = equal)','idx'],['closer_late','Placed hold-ups moving only from 1f out %','pct'],['early_L','Runners leading early %','pct'],['early_H','Runners held up early %','pct'],['grip','Draw grip / side (points, + = low draw forward)','pts'],['plc_idx_low','Low draw place index','idx'],['plc_idx_high','High draw place index','idx'],['wide_high','High-drawn runners described wide % (RP era)','pct'],['trb_held_low','Low-drawn hold-ups in trouble % (RP era, round courses)','pct'],['trb_held_all','All hold-ups in trouble % (RP era)','pct']];
+const METRICS=[['lead_win','Early leaders: win %','pct'],['lead_plc','Early leaders: placed %','pct'],['lead_at1','Early leaders still in front 1f out %','pct'],['w_early','Winners that led early %','pct'],['w_late','Winners hitting the front in the final furlong %','pct'],['w2_back','Winners midfield or further back at 2f out %','pct'],['held_vs_fwd','Held-up place rate vs forward (100 = equal)','idx'],['closer_late','Placed hold-ups moving only from 1f out %','pct'],['early_L','Runners leading early %','pct'],['early_H','Runners held up early %','pct'],['grip','Draw grip, round courses (points, + = low draw forward)','pts','round'],['grip','Draw side, straight courses (points, + = low side forward)','pts','straight','side'],['plc_idx_low','Low draw place index','idx'],['plc_idx_high','High draw place index','idx'],['wide_high','High-drawn runners described wide % (RP era, round courses)','pct','round'],['trb_held_low','Low-drawn hold-ups in trouble % (RP era, round courses)','pct','round'],['trb_held_all','All hold-ups in trouble % (RP era)','pct']];
 function renderCompare(){
   $('legend').innerHTML='<span><i class="sw" style="background:var(--ink);width:3px"></i>National average for that race type, course type, trip and field size</span><span>Faded = under 40 races</span>';
-  const m=st.metric, def=METRICS.find(x=>x[0]===m);
-  let rs=rows.filter(r=>r.rt===st.rtX&&r.band===st.band&&r.fs===st.fsX&&(st.kind==='any'||r.kind===st.kind)&&r[m]!=null);
+  const def=METRICS[st.mi], m=def[0], only=def[3];
+  let rs=rows.filter(r=>r.rt===st.rtX&&r.band===st.band&&r.fs===st.fsX&&(st.kind==='any'||r.kind===st.kind)&&r[m]!=null&&(!only||(only==='straight'?r.kind==='straight':r.kind!=='straight')));
   rs.sort((a,b)=>b[m]-a[m]);
-  if(!rs.length){$('out').innerHTML='<div class="rank"><p class="empty">No courses have enough races for this trip, course type and field size.</p></div>';return}
+  if(!rs.length){$('out').innerHTML='<div class="rank"><p class="empty">No courses have enough races for this measure with this trip, course type, race type and field size.'+(only?' This measure only covers '+(only==='straight'?'straight':'round')+' courses.':'')+'</p></div>';return}
   const vals=rs.map(r=>r[m]).concat(rs.map(r=>NK(st.rtX,r,st.fsX)[m]).filter(v=>v!=null));
   const lo=Math.min(0,...vals), hi=Math.max(...vals,1); const sc=v=>100*(v-lo)/(hi-lo);
   const fmt=v=>def[2]==='pct'?Math.round(v)+'%':def[2]==='pts'?((v>0?'+':'')+Math.round(v)):Math.round(v)+'';
@@ -210,7 +210,7 @@ function render(){
 }
 $('course').innerHTML=courses.map(c=>`<option value="${c}">${title(c)}</option>`).join(''); $('course').value=st.course;
 $('course').onchange=e=>{st.course=e.target.value;store.set('atlas.course',st.course);render()};
-$('metric').innerHTML=METRICS.map(x=>`<option value="${x[0]}">${x[1]}</option>`).join(''); $('metric').value=st.metric; $('metric').onchange=e=>{st.metric=e.target.value;render()};
+$('metric').innerHTML=METRICS.map((x,i)=>`<option value="${i}">${x[1]}</option>`).join(''); $('metric').value=String(st.mi); $('metric').onchange=e=>{st.mi=+e.target.value;render()};
 $('band').innerHTML=BANDS.map(b=>`<option>${b}</option>`).join(''); $('band').value=st.band; $('band').onchange=e=>{st.band=e.target.value;render()};
 $('kindsel').onchange=e=>{st.kind=e.target.value;render()};
 $('tab-course').onclick=()=>{history.replaceState(null,'',location.pathname+location.search);render()};
