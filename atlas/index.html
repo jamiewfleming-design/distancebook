@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Race Shape Atlas</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -81,16 +82,44 @@ details ul{padding-left:20px;display:flex;flex-direction:column;gap:6px}
 .empty{padding:18px;color:var(--muted)}
 @media (max-width:640px){.rrow{grid-template-columns:110px 1fr 52px}}
 @media (prefers-reduced-motion:no-preference){.fill{transition:width .25s ease}}
+
+.hsearch{display:flex;flex-direction:column;gap:6px;max-width:420px;position:relative}
+.hsearch input{font:inherit;font-size:16px;padding:8px 10px;border:1px solid var(--rule);border-radius:4px;background:var(--card);color:var(--ink)}
+.hlist{position:absolute;top:100%;left:0;right:0;z-index:5;background:var(--card);border:1px solid var(--rule);border-radius:4px;margin-top:2px;max-height:320px;overflow:auto}
+.hlist button{display:block;width:100%;text-align:left;font:inherit;padding:7px 10px;border:0;border-bottom:1px solid var(--rule);background:none;color:var(--ink);cursor:pointer}
+.hlist button:hover,.hlist button:focus-visible{background:var(--turf-soft)}
+.hlist small{color:var(--muted);margin-left:6px}
+.hcard{border:1px solid var(--rule);border-radius:6px;background:var(--card);padding:16px;display:flex;flex-direction:column;gap:16px}
+.hhead h2{font-family:var(--display);font-size:30px;margin:0;line-height:1}
+.hhead p{margin:4px 0 0;color:var(--muted);font-size:14px}
+.hgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px 20px}
+.meter{display:flex;flex-direction:column;gap:3px}
+.meter .lab{display:flex;justify-content:space-between;font-size:14px}
+.meter .lab b{font-weight:600}
+.meter .tr{height:8px;background:var(--rule);border-radius:4px;overflow:hidden}
+.meter .tr i{display:block;height:100%;background:var(--turf)}
+.meter small{color:var(--muted);font-size:12px}
+.hsec h3{font-family:var(--display);font-size:18px;text-transform:uppercase;letter-spacing:.04em;margin:0 0 6px;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--rule);border-radius:4px;padding:6px 10px;font-size:14px;min-width:84px}
+.chip b{display:block;font-size:17px}
+.chip small{color:var(--muted)}
+.pos{color:var(--up)} .neg{color:var(--down)}
+.runs{width:100%;border-collapse:collapse;font-size:14px}
+.runs th,.runs td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--rule);white-space:nowrap}
+.runs th{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
+.runbox{overflow-x:auto}
 </style>
 <div class="wrap">
 <header>
   <h1>Race Shape Atlas</h1>
-  <p class="lede">How British flat races shake out at each course, trip and field size: who gets to the front, whether the draw decides it, how often early leaders last, and when winners hit the front. From Sporting Life comments on every GB flat race, Jan 2021 – Nov 2026. Wide-trip and trouble columns use Racing Post comments (2021 – Apr 2026). The Pace tab uses Racing TV furlong-by-furlong sectionals (Mar 2023 – Nov 2026).</p>
+  <p class="lede">How British flat races shake out at each course, trip and field size: who gets to the front, whether the draw decides it, how often early leaders last, and when winners hit the front. From Sporting Life comments on every GB flat race, Jan 2021 – Nov 2026. Wide-trip and trouble columns use Racing Post comments (2021 – Apr 2026). The Pace and Horses tabs use Racing TV furlong-by-furlong sectionals (Mar 2023 – Nov 2026).</p>
 </header>
 <div class="tabs" role="tablist">
   <button class="tab" role="tab" id="tab-course" aria-selected="true">By course</button>
   <button class="tab" role="tab" id="tab-pace" aria-selected="false">Pace (sectionals)</button>
   <button class="tab" role="tab" id="tab-compare" aria-selected="false">Compare courses</button>
+  <button class="tab" role="tab" id="tab-horse" aria-selected="false">Horses</button>
 </div>
 
 <section id="view-course">
@@ -108,6 +137,13 @@ details ul{padding-left:20px;display:flex;flex-direction:column;gap:6px}
     <div class="ctl"><label for="kindsel">Course type</label><select id="kindsel"><option value="any">Any</option><option value="straight">Straight course</option><option value="turf round">Turf round</option><option value="AW round">All-weather round</option></select></div>
     <div class="ctl"><label>Race type</label><div class="seg" id="rt-compare"></div></div>
     <div class="ctl"><label>Field size</label><div class="seg" id="fs-compare"></div></div>
+  </div>
+</section>
+
+<section id="view-horse" hidden>
+  <div class="controls">
+    <div class="hsearch"><label for="hq" class="ctl"><span style="font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600">Horse</span></label>
+    <input id="hq" type="search" autocomplete="off" placeholder="Start typing a horse name" aria-controls="hlist"><div class="hlist" id="hlist" hidden></div></div>
   </div>
 </section>
 
@@ -130,6 +166,7 @@ details ul{padding-left:20px;display:flex;flex-direction:column;gap:6px}
     <li><b>Early leader wins by pace</b>: the horse in front about 2f into the race, and how often it won when the early pace was fast, even or slow. Each figure is pulled towards the national figure for that pace band by an amount set by its own sample, so read these as tendencies. <b>Pace sensitivity</b> is the slow-pace figure minus the fast-pace figure: a big number means front-runners need to get away with it.</li>
     <li><b>Winners at 2f out</b>: the winner's measured distance behind the leader and whether it was in the first three, two furlongs from home.</li>
     <li><b>Draw, measured</b>: early position (share of field ahead, about 2f into the race) of the low-drawn third compared with the high-drawn third, in points. Positive means low draws get further forward. On round courses stall 1 is on the inside rail.</li>
+    <li><b>Horses</b> (Racing TV sectionals, horses that have run since Nov 2025): <b>early speed</b> is the horse's average time to about 2f from the start against the race median, adjusted for course, trip and draw third, shown as a percentile of all horses (higher = quicker away). <b>Usual position</b> is its average measured place in the field about 2f in. <b>Finishing speed</b> is its last 2f against the field, and <b>stays on</b> is how little it slows in the final furlong compared with the one before, both as percentiles. Restrained, slow start and keen come from the Sporting Life comments. <b>Rating</b> figures are our home rating (official rating, weight and beaten lengths) against the horse's own median, in pounds, split by the race's measured early pace, trip and ground.</li>
     <li>Place terms: 2 places for up to 7 runners, 3 for 8–15, 4 for 16+.</li>
   </ul>
 </details>
@@ -227,6 +264,49 @@ function renderPace(){
   }
   $('out').innerHTML=h+'</tbody></table></div>';
 }
+
+let HD=null,HL=null,hsel=null;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const nk=s=>s.toLowerCase().replace(/\s*\([a-z]{2,3}\)\s*$/,'').replace(/[^a-z0-9]/g,'');
+function loadHorses(){ if(HD) return Promise.resolve(HD);
+  return fetch('horses.json').then(r=>r.json()).then(j=>{const C=j.cols;HD=j.rows.map(r=>Object.fromEntries(C.map((c,i)=>[c,r[i]])));HD.forEach(h=>h.k=nk(h.name));return HD}); }
+function meter(label,v,note){ if(v==null) return `<div class="meter"><div class="lab"><span>${label}</span><b>–</b></div><div class="tr"><i style="width:0"></i></div>${note?`<small>${note}</small>`:''}</div>`;
+  return `<div class="meter"><div class="lab"><span>${label}</span><b>${Math.round(v)}</b></div><div class="tr"><i style="width:${Math.max(2,Math.min(100,v))}%"></i></div>${note?`<small>${note}</small>`:''}</div>`}
+const sgn=v=>v==null?'–':(v>0?'+':'')+v.toFixed(1);
+const cls=v=>v==null?'':v>=1?'pos':v<=-1?'neg':'';
+function chips(arr,labels){return '<div class="chips">'+arr.map(([k,m,n])=>`<div class="chip"><small>${labels?labels[k]||k:k}</small><b class="${cls(m)}">${sgn(m)} lb</b><small>${n} run${n===1?'':'s'}</small></div>`).join('')+'</div>'}
+function horseCard(h){
+  const posTxt=h.pos==null?'':h.pos<20?'Usually leads or races handy':h.pos<40?'Usually prominent':h.pos<60?'Usually midfield':'Usually held up / towards the rear';
+  let s=`<div class="hcard"><div class="hhead"><h2>${esc(h.name)}</h2><p>${h.age?h.age+'yo · ':''}${esc(h.trainer||'')} · last ran ${h.last} · ${h.n} run${h.n===1?'':'s'} with sectionals · typical rating ${h.rating??'–'}</p></div>`;
+  s+=`<div class="hsec"><h3>Early</h3><div class="hgrid">${meter('Early speed (percentile)',h.early_pct,'Time to ~2f vs race, adjusted for course, trip and draw')}${meter('Position ~2f in (front = 100)',h.pos==null?null:100-h.pos,posTxt)}${meter('Led at ~2f, % of runs',h.led)}${meter('Restrained, % of runs',h.restr)}${meter('Slow start, % of runs',h.slow)}${meter('Keen, % of runs',h.keen)}</div></div>`;
+  s+=`<div class="hsec"><h3>Finish</h3><div class="hgrid">${meter('Finishing speed, last 2f (percentile)',h.fin_pct)}${meter('Stays on, final furlong (percentile)',h.fade_pct,'Higher = slows less in the final furlong')}</div></div>`;
+  const PL={fast:'Fast early',even:'Even',slow:'Slow early'};
+  s+=`<div class="hsec"><h3>Rating vs own norm, by early pace</h3>${chips(h.pace.filter(x=>x[2]>0),PL)||'<p class="meta">No pace-tagged runs</p>'}</div>`;
+  const TO=['5f','6f','7f','1m','9-10f','11-12f','13f+']; const tr=[...h.trips].sort((a,b)=>TO.indexOf(a[0])-TO.indexOf(b[0]));
+  s+=`<div class="hsec"><h3>By trip</h3>${chips(tr)}</div>`;
+  const GO=['firm','good','soft']; s+=`<div class="hsec"><h3>By ground</h3>${h.ground.length?chips([...h.ground].sort((a,b)=>GO.indexOf(a[0])-GO.indexOf(b[0])),{firm:'Firm / good to firm',good:'Good',soft:'Soft / heavy'}):'<p class="meta">No ground data</p>'}</div>`;
+  s+=`<div class="hsec"><h3>Recent runs</h3><div class="runbox"><table class="runs"><thead><tr><th>Date</th><th>Course</th><th>Trip</th><th>Finish</th><th>Behind at ~2f</th><th>Early pace</th><th>Rating vs norm</th><th>Notes</th></tr></thead><tbody>`;
+  for(const r of h.runs){const [d,c,dist,p,ran,lb,ps,hrn,rs,kn,tb]=r;const notes=[rs?'restrained':'',kn?'keen':'',tb?'trouble':''].filter(Boolean).join(', ');
+    s+=`<tr><td>${d}</td><td>${esc(c)}</td><td>${dist==null?'–':dist.toFixed(1)+'f'}</td><td>${p??'–'}/${ran}</td><td>${lb==null?'–':lb.toFixed(1)+' L'}</td><td>${ps||'–'}</td><td class="${cls(hrn)}">${hrn==null?'–':(hrn>0?'+':'')+hrn}</td><td>${notes||''}</td></tr>`}
+  return s+'</tbody></table></div></div></div>';
+}
+function renderHorse(){
+  $('legend').innerHTML='<span>Racing TV sectionals and Sporting Life comments · horses that have run since Nov 2025 · percentiles are against all horses with 3+ sectional runs</span>';
+  $('out').innerHTML='<div class="tablebox"><p class="empty">Loading horses…</p></div>';
+  loadHorses().then(()=>{
+    const want=decodeURIComponent(location.hash.split('/')[1]||'');
+    const h=want?HD.find(x=>x.k===nk(want)):null;
+    $('out').innerHTML=h?horseCard(h):'<div class="tablebox"><p class="empty">Type a horse name above. '+HD.length.toLocaleString()+' horses with sectional data.</p></div>';
+  }).catch(()=>{$('out').innerHTML='<div class="tablebox"><p class="empty">Horse data could not be loaded.</p></div>'});
+}
+$('hq').addEventListener('input',e=>{const q=nk(e.target.value);const L=$('hlist');
+  if(!q||!HD){L.hidden=true;return}
+  const a=HD.filter(h=>h.k.startsWith(q)), b=q.length>2?HD.filter(h=>!h.k.startsWith(q)&&h.k.includes(q)):[];
+  const m=a.concat(b).slice(0,15);
+  L.innerHTML=m.length?m.map(h=>`<button type="button" data-k="${h.k}">${esc(h.name)}<small>${esc(h.trainer||'')}</small></button>`).join(''):'<p class="empty">No match</p>';L.hidden=false});
+$('hlist').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const h=HD.find(x=>x.k===b.dataset.k);$('hlist').hidden=true;$('hq').value=h.name;location.hash='horse/'+encodeURIComponent(h.k)});
+$('hq').addEventListener('focus',()=>loadHorses());
+
 const METRICS=[['lead_win','Early leaders: win %','pct'],['lead_plc','Early leaders: placed %','pct'],['lead_at1','Early leaders still in front 1f out %','pct'],['w_early','Winners that led early %','pct'],['w_late','Winners hitting the front in the final furlong %','pct'],['w2_back','Winners midfield or further back at 2f out %','pct'],['held_vs_fwd','Held-up place rate vs forward (100 = equal)','idx'],['closer_late','Placed hold-ups moving only from 1f out %','pct'],['early_L','Runners leading early %','pct'],['early_H','Runners held up early %','pct'],['grip','Draw grip, round courses (points, + = low draw forward)','pts','round'],['grip','Draw side, straight courses (points, + = low side forward)','pts','straight','side'],['plc_idx_low','Low draw place index','idx'],['plc_idx_high','High draw place index','idx'],['dc_s1','Stall 1 place index (100 = average)','idx'],['dc_s23','Stalls 2–3 place index','idx'],['dc_w','Widest stall place index','idx'],['wide_high','High-drawn runners described wide % (RP era, round courses)','pct','round'],['trb_held_low','Low-drawn hold-ups in trouble % (RP era, round courses)','pct','round'],['trb_held_all','All hold-ups in trouble % (RP era)','pct'],['sx_slow','Sectionals: races run slow early %','pct'],['sx_fast','Sectionals: races run fast early %','pct'],['sx_ldr_slow','Sectionals: early leader win % when slow early','pct'],['sx_ldr_fast','Sectionals: early leader win % when fast early','pct'],['sx_sens','Sectionals: pace sensitivity (leader win, slow minus fast, pts)','pts'],['sx_ldr_plc','Sectionals: early leader placed %','pct'],['sx_w_lb2','Sectionals: winners\' median lengths behind at 2f out','len'],['sx_w_top3','Sectionals: winners in top 3 at 2f out %','pct'],['sx_draw','Sectionals: measured early position, low vs high draw (pts)','pts']];
 function renderCompare(){
   $('legend').innerHTML='<span><i class="sw" style="background:var(--ink);width:3px"></i>National average for that race type, course type, trip and field size</span><span>Faded = under 40 races</span>';
@@ -248,12 +328,12 @@ function renderCompare(){
   $('out').innerHTML=h+'</div>';
 }
 function render(){
-  const cmpView=location.hash==='#compare', paceView=location.hash==='#pace';
-  $('view-course').hidden=cmpView; $('view-compare').hidden=!cmpView;
-  $('tab-course').setAttribute('aria-selected',!cmpView&&!paceView); $('tab-pace').setAttribute('aria-selected',paceView); $('tab-compare').setAttribute('aria-selected',cmpView);
+  const cmpView=location.hash==='#compare', paceView=location.hash==='#pace', horseView=location.hash.startsWith('#horse');
+  $('view-course').hidden=cmpView||horseView; $('view-compare').hidden=!cmpView; $('view-horse').hidden=!horseView; $('tab-horse').setAttribute('aria-selected',horseView);
+  $('tab-course').setAttribute('aria-selected',!cmpView&&!paceView&&!horseView); $('tab-pace').setAttribute('aria-selected',paceView); $('tab-compare').setAttribute('aria-selected',cmpView);
   seg($('fs-course'),st.fsC,k=>{st.fsC=k;render()}); seg($('fs-compare'),st.fsX,k=>{st.fsX=k;render()});
   seg($('rt-course'),st.rtC,k=>{st.rtC=k;render()},RT); seg($('rt-compare'),st.rtX,k=>{st.rtX=k;render()},RT);
-  cmpView?renderCompare():paceView?renderPace():renderCourse();
+  horseView?renderHorse():cmpView?renderCompare():paceView?renderPace():renderCourse();
 }
 $('course').innerHTML=courses.map(c=>`<option value="${c}">${title(c)}</option>`).join(''); $('course').value=st.course;
 $('course').onchange=e=>{st.course=e.target.value;store.set('atlas.course',st.course);render()};
@@ -263,6 +343,7 @@ $('kindsel').onchange=e=>{st.kind=e.target.value;render()};
 $('tab-course').onclick=()=>{history.replaceState(null,'',location.pathname+location.search);render()};
 $('tab-compare').onclick=()=>{location.hash='compare'};
 $('tab-pace').onclick=()=>{location.hash='pace'};
+$('tab-horse').onclick=()=>{location.hash='horse'};
 window.addEventListener('hashchange',render);
 render();
 })();
