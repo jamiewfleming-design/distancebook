@@ -91,7 +91,7 @@ footer{color:var(--muted);font-size:12px;padding-block:8px 24px}
   <div class="chips" id="races" role="group" aria-label="Race"></div>
 </div></div>
 <main class="wrap" id="main"><div class="empty">Loading today's cards…</div></main>
-<footer class="wrap">Target = the shortest price worth taking for a win by at least that many lengths (jumps 1/2/4/6/8, flat 1–5), treating the current price as the SP. It trusts the model's view only as far as it held up on 2023–26 races and adds a safety margin (10% at the shorter margins rising to 20% at the longest). Runners are listed in price order. Struck through: hurdle favourites the model marks down at 8L, which lost money in testing. Green: the model rates this runner's chance clearly above what its price alone implies. Orange: clearly below. Small figure: estimated chance. "From" is the first on-course show price; before the show the page only shows Sporting Life's tissue for reference and treats the price as unmoved. Dashed row: chance the race is won by at least that margin, whoever wins. "If it wins": the chance this runner's win would be by at least each margin. GB jumps, flat turf and all-weather. Bumpers have no targets but count in the meeting total (treated as hurdles). Meeting total: the last chip in each course's race list. Jumps 1L+ counts a win by exactly 1 length or more (check the shop's wording; exactly 1L decides about 4% of races). It is worked out from the 2L chance and the share of 2L+-type winners that clear 1L in 2023–26, with a 10% margin. "Eases clear wins" / "rides clear wins out" (top three in the market only): how much of a clear lead (4L+ a furlong out) this jockey and yard usually keep, against the average, from Racing TV sectionals since 2023. It is for information and is not in the targets: it shows mostly at 6L–8L and on sharp tracks where clear leads usually hold. Hover or long-press for the jockey and yard figures.</footer>
+<footer class="wrap">Target = the shortest price worth taking for a win by at least that many lengths (jumps 1/2/4/6/8, flat 1–5), treating the current price as the SP. It trusts the model's view only as far as it held up on 2023–26 races and adds a safety margin (10% at the shorter margins rising to 20% at the longest). Runners are listed in price order. Struck through: hurdle favourites the model marks down at 8L, which lost money in testing. Green: the model rates this runner's chance clearly above what its price alone implies. Orange: clearly below. Small figure: estimated chance. "From" is the first on-course show price; before the show the page only shows Sporting Life's tissue for reference and treats the price as unmoved. Dashed row: chance the race is won by at least that margin, whoever wins. "If it wins": the chance this runner's win would be by at least each margin. GB jumps, flat turf and all-weather. Bumpers have no targets but count in the meeting total (treated as hurdles). Meeting total: the last chip in each course's race list. Jumps 1L+ counts a win by exactly 1 length or more (check the shop's wording; exactly 1L decides about 4% of races). It is worked out from the 2L chance and the share of 2L+-type winners that clear 1L in 2023–26, with a 10% margin. "Eases clear wins" / "rides clear wins out" (top three in the market only): how much of a clear lead (4L+ a furlong out) this jockey and yard usually keep, against the average, from Racing TV sectionals since 2023. It is for information and is not in the targets: it shows mostly at 6L–8L and on sharp tracks where clear leads usually hold. Hover or long-press for the jockey and yard figures. 2–3 runner hurdles and chases: the 6L/8L chances get a small-field correction (these races are won wider than the price suggests), and in the meeting total their spread of winning distances is blended 50/50 with a small-field table.</footer>
 <script>
 const LADDER=[[1,10],[1,8],[1,6],[1,5],[2,9],[1,4],[2,7],[1,3],[4,11],[2,5],[4,9],[1,2],[8,15],[4,7],[8,13],[4,6],[8,11],[4,5],[5,6],[10,11],[1,1],[11,10],[6,5],[5,4],[11,8],[6,4],[13,8],[7,4],[15,8],[2,1],[85,40],[9,4],[12,5],[5,2],[11,4],[3,1],[10,3],[7,2],[4,1],[9,2],[5,1],[11,2],[6,1],[13,2],[7,1],[15,2],[8,1],[17,2],[9,1],[10,1],[11,1],[12,1],[14,1],[16,1],[18,1],[20,1],[22,1],[25,1],[28,1],[33,1],[40,1],[50,1],[66,1],[80,1],[100,1],[125,1],[150,1],[200,1],[250,1],[300,1],[400,1],[500,1]];
 let DATA=null, state={course:null, race:null, live:{}}, timer=null;
@@ -134,7 +134,7 @@ function compute(race){
     race.th.forEach(k=>{ const c=race.price_coef[k]; let zf=r.offset[k]; for(const n in c) zf+=c[n]*f[n];
       const b=race.base[k], zb=b.icpt+b.x*f.x+b.x2*f.x2+b.x3*f.x3;
       const lam=race.lambda[k], m=race.margin[k];
-      const z=zb+lam*(zf-zb), p=sig(z);
+      const z=zb+lam*(zf-zb)+fsAdj(race,k,ran), p=sig(z);
       r.p[k]=p; r.pb[k]=sig(zb); r.tilt[k]=p/sig(zb); r.target[k]=(1+m)/p; });
     // 1 length or more (jumps): from the 2L chance, using how often 2L+ winners' margins clear 1L (GB jumps winners 2023-26)
     if(race.one_len&&r.p['2']!=null&&r.share>0){ const [a0,a1]=race.one_len;
@@ -146,6 +146,7 @@ function compute(race){
   const race_p={}; TH.forEach(k=>race_p[k]=Math.min(.99,act.reduce((a,r)=>a+(r.p[k]||0),0)));   // P(this race is won by k+), whoever wins
   return {rows,ran,nLive,book:tot,race_p};
 }
+function fsAdj(race,k,ran){ const a=race.fs_adj&&race.fs_adj[k]; if(!a) return 0; return ran===2? a.ran2 : ran===3? a.ran3 : 0; }   // 2-3 runner jumps races: 6L/8L tail correction
 function dispTh(race){ return race.one_len? ['1',...race.th] : race.th; }   // thresholds shown: jumps add 1L+ (derived)
 function norm(s){return String(s||'').toLowerCase().replace(/\s*\([a-z]{2,3}\)\s*$/,'').replace(/[^a-z0-9]/g,'')}
 const LWORDS={nse:.05,nose:.05,sh:.1,shd:.1,hd:.2,nk:.3,dht:0,dh:0,dist:999};
@@ -241,13 +242,16 @@ function powerShares(prices){ const tot=prices.reduce((a,p)=>a+1/p,0); if(tot<=1
 function raceDist(race){
   const live=state.live[race.race_id], cap=(race.code==='Turf'||race.code==='AW')?12:30, step=MT.step;
   if(live&&live.result!=null){ const m=Math.min(live.result,cap); const d={}; d[Math.round(m/step)]=1; return {d, mean:m, settled:true}; }
-  let key=race.code, idx;
+  let key=race.code, idx, nRan=0;
   if(race.meeting_only){ key='Bumper';
     const pr=race.runners.map(r=>{ const L=live&&live.byName[norm(r.name)]; return L&&L.nr?null:((L&&L.cur)||r.morning) }).filter(Boolean);
     const sh=powerShares(pr); idx=0;
     for(const k in MT.bumper_base){ const b=MT.bumper_base[k]; sh.forEach(p=>{ const q=Math.min(.98,Math.max(.002,p)), x=Math.log(q/(1-q)); idx+=sig(b.icpt+b.x*x+b.x2*x*x+b.x3*x*x*x) }) }
-  } else { const c=compute(race); idx=0; c.rows.filter(r=>!r.nr&&r.p).forEach(r=>{ for(const k of race.th) idx+=r.p[k] }); }
+  } else { const c=compute(race); nRan=c.ran; idx=0; c.rows.filter(r=>!r.nr&&r.p).forEach(r=>{ for(const k of race.th) idx+=r.p[k] }); }
   const t=MT.tables[key]; let b=0; while(b<t.edges.length&&idx>t.edges[b]) b++;
+  const sm=MT.small&&(race.code==='Hurdle'||race.code==='Chase')&&(nRan===2||nRan===3)? MT.small[race.code+'|'+nRan] : null;
+  if(sm){ const w=MT.small_weight??.5, d={}; for(const [i,p] of t.dist[b]) d[i]=(1-w)*p; for(const [i,p] of sm) d[i]=(d[i]||0)+w*p;   // 2-3 runners: blend with the field-size table
+    let mean=0; for(const i in d) mean+=i*step*d[i]; return {d, mean, settled:false, band:b+1, small:true}; }
   const d={}; for(const [i,p] of t.dist[b]) d[i]=p; return {d, mean:t.mean[b], settled:false, band:b+1};
 }
 function meetingDist(dists){       // full distribution of the meeting total, in MT.step units
